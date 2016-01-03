@@ -170,6 +170,7 @@ class eeDomusAPI:
 		vals["periph_id"]=periph_id
 		args = urllib.urlencode(vals)
 		data = json.load(urllib2.urlopen(self.baseURLget+args), encoding = "latin-1", object_hook=eeDevice_decoder)
+		print data
 		if int(data[u'success']):
 			return data[u'body']
 		else:
