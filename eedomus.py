@@ -6,6 +6,7 @@ import urllib2
 import warnings
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import time
 
 
 # eeDomus Python API. From http://doc.eedomus.com/en/index.php/API_eedomus
@@ -66,6 +67,8 @@ class eeDevice:
 	def lastValue(self):
 		if not hasattr(self,"lastValue_"):
 			data = self.api.getCaracteristics(self.periph_id)
+			if data[u'name']!=self.name:
+				raise Exception('Name inconsistency: %s vs %s'%(data[u'name'],self.name))
 			self.lastValue_ = data[u"last_value"]
 			self.lastValueChange_ = data[u"last_value_change"]
 		return self.lastValue_
@@ -73,6 +76,8 @@ class eeDevice:
 	def lastValueChange(self):
 		if not hasattr(self,"lastValueChange_"):
 			data = self.api.getCaracteristics(self.periph_id)
+			if data[u'name']!=self.name:
+				raise Exception('Name inconsistency: %s vs %s'%(data[u'name'],self.name))
 			self.lastValue_ = data[u"last_value"]
 			self.lastValueChange_ = data[u"last_value_change"]
 		return self.lastValueChange_
@@ -84,16 +89,29 @@ class eeDevice:
 			date_string = None
 		return self.api.setPeriphValue(self.periph_id, value, date_string, mode, update_only)
 
+	def getHistory(self,start_date=None, end_date=None):
+		return self.api.getPeriphHistory(self.periph_id,start_date,end_date)
+
 	def refresh(self):
 		del self.lastValue_
 		del self.lastValueChange_
 		
 def eeDevice_decoder(obj):
 	"""Decoder to create a device from the json dict returned by the API"""
-	if u"periph_id" in obj:
+	if u'last_value_change' in obj:
+		return { u'name':obj[u'name'],
+			 u'last_value':obj[u'last_value'],
+			 u'last_value_change': datetime.strptime(obj[u'last_value_change'],"%Y-%m-%d %H:%M:%S") }
+	elif u"periph_id" in obj:
 		return eeDevice(obj[u"periph_id"], obj[u"parent_periph_id"], obj[u"name"], obj[u"room_id"], 
 				obj[u"room_name"], obj[u"usage_id"], obj[u"usage_name"], datetime.strptime(obj[u"creation_date"],"%Y-%m-%d %H:%M:%S"))
+	elif u'history' in obj:
+		result = []
+		for item in obj[u'history']:
+			result += [ (item[0], datetime.strptime(item[1],"%Y-%m-%d %H:%M:%S") ) ]
+		return result
 	return obj
+
 
 def findDevice(thelist,periph_id=None,parent_periph_id=None,name=None,room_id=None,room_name=None,usage_id=None,usage_name=None,creation_date=None):
 	"""Utility to filter a list of devices"""
@@ -143,10 +161,7 @@ class eeDomusAPI:
 		vals["action"]="auth.test"
 		args = urllib.urlencode(vals)
 		data = json.load(urllib2.urlopen(self.baseURLget+args), encoding = "latin-1")
-		if int(data[u'success']):
-			return data[u'body']
-		else:
-			raise eeError(data[u"body"])
+		return int(data[u'success'])
 
 	# Get basic caracteristics from a user peripheral:
 	def getCaracteristics(self,periph_id):
@@ -154,7 +169,7 @@ class eeDomusAPI:
 		vals["action"]="periph.caract"
 		vals["periph_id"]=periph_id
 		args = urllib.urlencode(vals)
-		data = json.load(urllib2.urlopen(self.baseURLget+args), encoding = "latin-1")
+		data = json.load(urllib2.urlopen(self.baseURLget+args), encoding = "latin-1", object_hook=eeDevice_decoder)
 		if int(data[u'success']):
 			return data[u'body']
 		else:
@@ -181,13 +196,21 @@ class eeDomusAPI:
 		if not start_date is None: vals["start_date"]=start_date.strftime("%Y-%m-%d %H:%M:%S")
 		if not end_date is None: vals["end_date"]=end_date.strftime("%Y-%m-%d %H:%M:%S")
 		args = urllib.urlencode(vals)
-		data = json.load(urllib2.urlopen(self.cloudURLget+args), encoding = "latin-1")
+		data = json.load(urllib2.urlopen(self.cloudURLget+args), encoding = "latin-1", object_hook=eeDevice_decoder)
 		if int(data[u'success']):
 			if u'history_overflow' in data:
-				#TODO: in that case, split and restart (recursively)
 				warnings.warn("Warning. Overflow: History is limited to 10K",UserWarning)
+				#Here, we try to circumvent the limitation, but it may be taken as a API history spam 
+				date_begin  = start_date if not start_date is None else datetime.now() - relativedelta(years=1)
+				date_end    = end_date if not end_date is None else datetime.now()
+				date_middle = date_begin+(date_end-date_begin)/2
+				time.sleep(5)
+				result = self.getPeriphHistory( periph_id,date_begin,date_middle )
+				time.sleep(5)
+				result.append(self.getPeriphHistory( periph_id,date_middle,date_end ))
+				return result
 			else:
-				return data[u'body'][u'history']
+				return data[u'body']
 		else:
 			raise eeError(data[u"body"])
 
