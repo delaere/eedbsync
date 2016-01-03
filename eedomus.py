@@ -113,16 +113,15 @@ class eeDomusAPI:
 	"""Main interface to the eeDomus API.
 	   I is created with the user and secret, and will use the local URL by default (except to get the history).
 	"""
-	def __init__(self, api_user, api_secret, local=True):
+	def __init__(self, api_user, api_secret, localIP=None):
 		self.api_user = api_user
 		self.api_secret = api_secret
-		#TODO: local URL should be an option
-		self.localURLget = "http://192.168.1.13/api/get?"
+		self.localURLget = None if localIP is None else  "http://%s/api/get?"%localIP
 		self.cloudURLget = "http://api.eedomus.com/get?"
-		self.localURLset = "http://192.168.1.13/api/set?"
+		self.localURLset = None if localIP is None else  "http://%s/api/set?"%localIP
 		self.cloudURLset = "http://api.eedomus.com/set?"
 
-		if local is True:
+		if localIP is not None :
 			self.baseURLget = self.localURLget
 			self.baseURLset = self.localURLset
 		else:
