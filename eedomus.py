@@ -4,6 +4,9 @@ import json
 import urllib
 import urllib2
 import warnings
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
 
 # eeDomus Python API. From http://doc.eedomus.com/en/index.php/API_eedomus
 
@@ -51,7 +54,7 @@ class eeDevice:
 		myString+= "Name: %s\n"%self.name
 		myString+= "Room: %s (#%s)\n"%(self.room_name,self.room_id)
 		myString+= "Usage: %s (#%s)\n"%(self.usage_name,self.usage_id)
-		myString+= "Created on %s"%self.creation_date
+		myString+= "Created on %s"%self.creation_date.strftime("%Y-%m-%d %H:%M:%S")
 		return myString
 
 	def __str__(self):
@@ -75,7 +78,11 @@ class eeDevice:
 		return self.lastValueChange_
 
 	def setValue(self,value, value_date=None, mode="", update_only=False):
-		return self.api.setPeriphValue(self.periph_id, value, value_date, mode, update_only)
+		if value_date is not None:
+			date_string = value_date.strftime("%Y-%m-%d %H:%M:%S")
+		else :
+			date_string = None
+		return self.api.setPeriphValue(self.periph_id, value, date_string, mode, update_only)
 
 	def refresh(self):
 		del self.lastValue_
@@ -85,7 +92,7 @@ def eeDevice_decoder(obj):
 	"""Decoder to create a device from the json dict returned by the API"""
 	if u"periph_id" in obj:
 		return eeDevice(obj[u"periph_id"], obj[u"parent_periph_id"], obj[u"name"], obj[u"room_id"], 
-				obj[u"room_name"], obj[u"usage_id"], obj[u"usage_name"], obj[u"creation_date"])
+				obj[u"room_name"], obj[u"usage_id"], obj[u"usage_name"], datetime.strptime(obj[u"creation_date"],"%Y-%m-%d %H:%M:%S"))
 	return obj
 
 def findDevice(thelist,periph_id=None,parent_periph_id=None,name=None,room_id=None,room_name=None,usage_id=None,usage_name=None,creation_date=None):
@@ -171,8 +178,8 @@ class eeDomusAPI:
 		vals = self.values.copy()
 		vals["action"]="periph.history"
 		vals["periph_id"]=periph_id
-		if not start_date is None: vals["start_date"]=start_date
-		if not end_date is None: vals["end_date"]=end_date
+		if not start_date is None: vals["start_date"]=start_date.strftime("%Y-%m-%d %H:%M:%S")
+		if not end_date is None: vals["end_date"]=end_date.strftime("%Y-%m-%d %H:%M:%S")
 		args = urllib.urlencode(vals)
 		data = json.load(urllib2.urlopen(self.cloudURLget+args), encoding = "latin-1")
 		if int(data[u'success']):
@@ -191,7 +198,7 @@ class eeDomusAPI:
 		vals["action"]="periph.value"
 		vals["periph_id"]=periph_id
 		vals["value"]=value
-		if not value_date is None: vals["value_date"]=value_date
+		if not value_date is None: vals["value_date"]=value_date.strftime("%Y-%m-%d %H:%M:%S")
 		if mode=="mobile": vals["mode"]="mobile"
 		if update_only: vals["update_only"]=1
 		args = urllib.urlencode(vals)
