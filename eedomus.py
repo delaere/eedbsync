@@ -42,7 +42,7 @@ class eeDevice:
 	"""
 	def __init__(self, periph_id,parent_periph_id,name,room_id,room_name,usage_id,usage_name,creation_date):
 		self.periph_id = periph_id
-		self.parent_periph_id = parent_periph_id
+		self.parent_periph_id = parent_periph_id if not parent_periph_id is '' else 0
 		self.name = name
 		self.room_id = room_id
 		self.room_name = room_name
@@ -170,7 +170,6 @@ class eeDomusAPI:
 		vals["periph_id"]=periph_id
 		args = urllib.urlencode(vals)
 		data = json.load(urllib2.urlopen(self.baseURLget+args), encoding = "latin-1", object_hook=eeDevice_decoder)
-		print data
 		if int(data[u'success']):
 			return data[u'body']
 		else:
@@ -201,15 +200,20 @@ class eeDomusAPI:
 		if int(data[u'success']):
 			if u'history_overflow' in data:
 				warnings.warn("Warning. Overflow: History is limited to 10K",UserWarning)
-				#Here, we try to circumvent the limitation, but it may be taken as a API history spam 
-				date_begin  = start_date if not start_date is None else datetime.now() - relativedelta(years=1)
-				date_end    = end_date if not end_date is None else datetime.now()
-				date_middle = date_begin+(date_end-date_begin)/2
-				time.sleep(5)
-				result = self.getPeriphHistory( periph_id,date_begin,date_middle )
-				time.sleep(5)
-				result.append(self.getPeriphHistory( periph_id,date_middle,date_end ))
-				return result
+				#time.sleep(15)
+				#deltat = data[u'body'][0][1]-data[u'body'][-1][1]
+				#date_begin = start_date if not start_date is None else datetime.now() - relativedelta(years=1)
+				#date_end   = end_date if not end_date is None else datetime.now()
+				#date_start = date_begin
+				#result = []
+				#while date_start < date_end:
+				#	time.sleep(5)
+				#	print date_start, date_start+deltat, 
+				#	result += self.getPeriphHistory( periph_id,date_start,date_start+deltat )
+				#	print len(result)
+				#	date_start += deltat
+				#return result
+				return data[u'body']
 			else:
 				return data[u'body']
 		else:
@@ -243,14 +247,3 @@ class eeDomusAPI:
 			return data[u'body'][u'result']
 		else:
 			raise eeError(data[u"body"])
-
-#TODO script d'importation de la db
-# - get list of periphs -> devices, rooms, usages, (macros???)
-# - load history if not in db (from beginning of time till last downloas)
-# - for all devices, refresh by loading the history
-
-# then, the webserver will run and access the db via a php script returning data in json format.
-# we should also consider the possibility to attack the db with ROOT
-
-# the initial idea of the webserver is to present a selection of graphs. 
-# in a second stage, I will see how to be more generic
