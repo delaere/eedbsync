@@ -9,86 +9,92 @@ from credentials import api_user,api_secret
 
 def getAPI():
     # the API entry point
-    api = eeDomusAPI(api_user,api_secret,"192.168.1.13")
+    #api = eeDomusAPI(api_user,api_secret,"192.168.1.13")
+    api = eeDomusAPI(api_user,api_secret)
     if api.authTest()==1:
         print "Authentification OK"
     else:
 	raise eeError(None,1,"Authentification Error")
     return api
 
-#TODO: all these methods would fit in a class.
-#this would simplify the interface (no need to expose the connection & cursor)
-#and would allow to combine some steps naturally
+#TODO: implement a version of the eeDomusAPI that uses the mysql database
 
-def getDbCursor():
-    # host, user, password, db
-    con = mdb.connect('localhost', 'eedomus', 'eedomus', 'eedb');
-    cur = con.cursor()
-    cur.execute("SELECT VERSION()")
-    ver = cur.fetchone()
-    print "Database version : %s " % ver
-    return (con,cur)
+class eeLocalDb:
+	def __init__(self, host='localhost', user='eedomus', password='eedomus', database='eedb'):
+	    self.con = mdb.connect(host, user, password, database)
+	    self.cur = self.con.cursor()
+	    self.cur.execute("SELECT VERSION()")
+	    ver = self.cur.fetchone()
+	    print "Database version : %s " % ver
 
-def getLastSync(cursor):
-    cursor.execute("SELECT MAX(job_id) as MaximumID FROM syncjobs;")
-    maximumID = cursor.fetchone()
-    if maximumID[0] is None:
-	# first sync
-	return None
-    else:
-	cursor.execute("SELECT execution_date FROM syncjobs where job_id = %s;",maximumID)
-	execution_date = cursor.fetchone()
-	return execution_date[0]
+	def getDbCursor(self):
+	    return self.cur
+
+	def getLastSync(self):
+	    self.cur.execute("SELECT MAX(job_id) as MaximumID FROM syncjobs;")
+	    maximumID = self.cur.fetchone()
+	    if maximumID[0] is None:
+		# first sync
+		return None
+	    else:
+		self.cur.execute("SELECT execution_date FROM syncjobs where job_id = %s;",maximumID)
+		execution_date = self.cur.fetchone()
+		return execution_date[0]
 	 
-def hasUsage(cursor,usage_id):
-	cursor.execute("SELECT COUNT(*) AS CNT FROM devusage WHERE usage_id = %s;",(usage_id,))
-	return cursor.fetchone()[0]==1
+	def hasUsage(self,usage_id):
+		self.cur.execute("SELECT COUNT(*) AS CNT FROM devusage WHERE usage_id = %s;",(usage_id,))
+		return self.cur.fetchone()[0]==1
 
-def hasRoom(cursor,room_id):
-	cursor.execute("SELECT COUNT(*) AS CNT FROM room WHERE room_id = %s;",(room_id,))
-	return cursor.fetchone()[0]==1
+	def hasRoom(self,room_id):
+		self.cur.execute("SELECT COUNT(*) AS CNT FROM room WHERE room_id = %s;",(room_id,))
+		return self.cur.fetchone()[0]==1
 
-def hasDevice(cursor,device):
-	cursor.execute("SELECT COUNT(*) AS CNT FROM device WHERE periph_id = %s;",(device.periph_id,))
-	return cursor.fetchone()[0]==1
+	def hasDevice(self,device):
+		self.cur.execute("SELECT COUNT(*) AS CNT FROM device WHERE periph_id = %s;",(device.periph_id,))
+		return self.cur.fetchone()[0]==1
 
-def addUsage(cursor,usage_id,usage_name):
-	print "add",usage_id,usage_name
-	cursor.execute("INSERT INTO devusage (usage_id,usage_name) VALUES(%s,%s)",(usage_id,usage_name))
+	def addUsage(self,usage_id,usage_name):
+		print "add",usage_id,usage_name
+		self.cur.execute("INSERT INTO devusage (usage_id,usage_name) VALUES(%s,%s)",(usage_id,usage_name))
 
-def addRoom(cursor,room_id,room_name):
-	print "add",room_id,room_name
-	cursor.execute("INSERT INTO room (room_id,room_name) VALUES(%s,%s)",(room_id,room_name))
+	def addRoom(self,room_id,room_name):
+		print "add",room_id,room_name
+		self.cur.execute("INSERT INTO room (room_id,room_name) VALUES(%s,%s)",(room_id,room_name))
 
-def addDevice(cursor,device):
-	print "add",device.periph_id,device.name
-	values = (device.periph_id,device.parent_periph_id,device.name,device.room_id,device.usage_id,device.creation_date.strftime("%Y-%m-%d %H:%M:%S"))
-	cursor.execute("INSERT INTO device(periph_id,parent_periph_id,name,room_id,usage_id,creation_date) VALUES(%s,%s,%s,%s,%s,%s)", values)
+	def addDevice(self,device):
+		print "add",device.periph_id,device.name
+		values = (device.periph_id,device.parent_periph_id,device.name,device.room_id,device.usage_id,device.creation_date.strftime("%Y-%m-%d %H:%M:%S"))
+		self.cur.execute("INSERT INTO device(periph_id,parent_periph_id,name,room_id,usage_id,creation_date) VALUES(%s,%s,%s,%s,%s,%s)", values)
 
-def insertHistory(cursor,dev,history):
-	print "Inserting", len(history), "values for", dev.name
-	for measurement in history:
-		add_measurement = ("INSERT INTO periph_history "
-		                   "(periph_id,measurement,timestamp) "
-	                           "VALUES (%s,%s,%s)")
-		data = (dev.periph_id,measurement[0],measurement[1].strftime("%Y-%m-%d %H:%M:%S"))
-		cursor.execute(add_measurement, data)
+	def insertHistory(self,dev,history):
+		print "Inserting", len(history), "values for", dev.name
+		for measurement in history:
+			add_measurement = ("INSERT INTO periph_history "
+			                   "(periph_id,measurement,timestamp) "
+		                           "VALUES (%s,%s,%s)")
+			data = (dev.periph_id,measurement[0],measurement[1].strftime("%Y-%m-%d %H:%M:%S"))
+			self.cur.execute(add_measurement, data)
 
-def registerSync(cursor,time):
-	cursor.execute("INSERT INTO syncjobs (execution_date) VALUES (\'%s\')"%time.strftime("%Y-%m-%d %H:%M:%S"))
+	def registerSync(self,time):
+		self.cur.execute("INSERT INTO syncjobs (execution_date) VALUES (\'%s\')"%time.strftime("%Y-%m-%d %H:%M:%S"))
+
+	def commitAndClose(self):
+		self.con.commit()
+		self.con.close()
+
 
 def doSync():
 	# first fill the device table
 	api = getAPI()
 	devices = api.getPeriphList()
-	(con,cursor) = getDbCursor()
-	lastSync = getLastSync(cursor)
+	localDb = eeLocalDb('localhost','eedomus','eedomus','eedb')
+	lastSync = localDb.getLastSync()
 	newDevices = []
 	for dev in devices:
-		if not hasUsage(cursor,dev.usage_id): addUsage(cursor,dev.usage_id, dev.usage_name)
-		if not hasRoom(cursor,dev.room_id): addRoom(cursor,dev.room_id,dev.room_name)
-		if not hasDevice(cursor,dev): 
-			addDevice(cursor,dev)
+		if not localDb.hasUsage(dev.usage_id): localDb.addUsage(dev.usage_id, dev.usage_name)
+		if not localDb.hasRoom(dev.room_id): localDb.addRoom(dev.room_id,dev.room_name)
+		if not localDb.hasDevice(dev):
+			localDb.addDevice(dev)
 			newDevices.append(dev.periph_id)
 	
 	# now, run on devices and update history
@@ -100,14 +106,13 @@ def doSync():
 		time.sleep(1)
 		print "Downloading history for", dev.name
 		history = dev.getHistory(None,end_date) if dev.periph_id in newDevices else dev.getHistory(begin_date,end_date)
-		insertHistory(cursor, dev, history)
+		localDb.insertHistory(dev, history)
 	
 	# register the sync operation
-	registerSync(cursor, end_date)
+	localDb.registerSync(end_date)
 
 	# commit and close
-	con.commit()
-	con.close()
+	localDb.commitAndClose()
 
 if __name__ == "__main__":
 	doSync()
