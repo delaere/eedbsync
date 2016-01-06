@@ -17,8 +17,6 @@ def getAPI():
 	raise eeError(None,1,"Authentification Error")
     return api
 
-#TODO: implement a version of the eeDomusAPI that uses the mysql database
-
 class eeLocalDb:
 	def __init__(self, host='localhost', user='eedomus', password='eedomus', database='eedb'):
 	    self.con = mdb.connect(host, user, password, database)
