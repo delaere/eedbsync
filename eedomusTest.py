@@ -4,7 +4,8 @@ from eedomus import eeError,eeDevice,findDevice,eeDomusAPI
 from credentials import api_user,api_secret
 
 # the API entry point
-api = eeDomusAPI(api_user,api_secret,"192.168.1.13")
+#api = eeDomusAPI(api_user,api_secret,"192.168.1.13")
+api = eeDomusAPI(api_user,api_secret)
 
 if api.authTest()==1:
 	print "Authentification OK"
