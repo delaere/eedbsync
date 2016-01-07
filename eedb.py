@@ -43,7 +43,7 @@ class eeDbAPI:
 	def getPeriphHistory(self,periph_id, start_date=None, end_date=None):
 		start = (start_date if start_date is not None else (datetime.now()-relativedelta(years=1))).strftime("%Y-%m-%d %H:%M:%S")
 		end   = (end_date if end_date is not None else datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
-		self.cur.execute("SELECT measurement,timestamp FROM periph_history WHERE periph_id=%s AND timestamp between %s and %s ORDER BY id DESC;",(periph_id,start,end))
+		self.cur.execute("SELECT measurement,timestamp FROM periph_history WHERE periph_id=%s AND timestamp between %s and %s ORDER BY timestamp DESC;",(periph_id,start,end))
 		hist = []
 		return self.cur.fetchall()
 
