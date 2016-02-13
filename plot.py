@@ -20,7 +20,7 @@ api = eeDbAPI()
 devs = api.getPeriphList()
 temps = findDevice(devs,usage_name=u"Température")
 outside = temps[0].getHistory()
-inside = temps[2].getHistory()
+inside = temps[3].getHistory()
 
 c1 = ROOT.TCanvas()
 gr = graphFromHistory(outside)

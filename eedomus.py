@@ -108,7 +108,12 @@ def eeDevice_decoder(obj):
 	elif u'history' in obj:
 		result = []
 		for item in obj[u'history']:
-			result += [ (item[0], datetime.strptime(item[1],"%Y-%m-%d %H:%M:%S") ) ]
+			try:
+				timestamp = datetime.strptime(item[1],"%Y-%m-%d %H:%M:%S")
+			except ValueError as e:
+				print "Warning: ", e.strerror
+			else:
+				result += [ (item[0], timestamp ) ]
 		return result
 	return obj
 
