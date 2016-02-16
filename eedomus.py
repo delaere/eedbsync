@@ -111,7 +111,7 @@ def eeDevice_decoder(obj):
 			try:
 				timestamp = datetime.strptime(item[1],"%Y-%m-%d %H:%M:%S")
 			except ValueError as e:
-				print "Warning: ", e.strerror
+				warnings.warn("Warning: %s"%e,UserWarning)
 			else:
 				result += [ (item[0], timestamp ) ]
 		return result
