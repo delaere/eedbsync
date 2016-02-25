@@ -4,7 +4,7 @@
 from eedomus import findDevice
 from eedb import eeDbAPI
 import ROOT
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
 from itertools import tee, izip
@@ -86,7 +86,53 @@ gr0 = cummulative(gr0)
 igraphs.append(gr0)
 gr0.Draw()
 
-#TODO: add a method for averaging over some time (1h, 1d, etc.)
+# method to rebin data.
+# it doesn't work for cumulative data.
+#TODO: add mode for min/max
+def rebin(data, period):
+
+  output = [ (0,data[-1][1]),  ]
+
+  for ((d0,time0),(d1,time1)) in pairwise(data[::-1]):
+    lasttime = output[-1][1]
+    nexttime = lasttime + period
+    d0 = float(d0)
+    d1 = float(d1)
+
+    # if the previous data point is before this interval, add a correction to the previous interval
+    # this should never happen...
+    if time0 < lasttime:
+      print "WARNING: I should never come here..."
+      duration = (lasttime-time0).total_seconds()
+      output[-2] = (output[-2][0] + d1*duration/period.total_seconds(), output[-2][1])
+    else:
+      lasttime = time0
+
+    # fill the "full intervals
+    while time1 > nexttime:
+      duration = (nexttime - lasttime).total_seconds()
+      output[-1] = (output[-1][0] +d1*duration/period.total_seconds(),output[-1][1])
+      output.append((0,nexttime)) 
+      lasttime = output[-1][1]
+      nexttime = lasttime + period
+
+    # the last bit
+    duration = (time1-lasttime).total_seconds()
+    output[-1] = (output[-1][0] +d1*duration/period.total_seconds(), output[-1][1])
+  
+  return output[:-1]
+
+def perHour(data):
+	return rebin(data,timedelta(0,3600))
+
+def perDay(data):
+	return rebin(data,timedelta(1))
+
+def perWeek(data):
+	return rebin(data,timedelta(7))
+
+def perMonth(data):
+	return rebin(data,timedelta(30))
 
 #TODO: add a cleaning method for the history: drop zero values, etc.
 
