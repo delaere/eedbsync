@@ -4,7 +4,7 @@
 from eedomus import findDevice
 from eedb import eeDbAPI
 import ROOT
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from dateutil.relativedelta import relativedelta
 
 from itertools import tee, izip
@@ -117,7 +117,7 @@ def rebin(data, period):
       nexttime = lasttime + period
 
     # the last bit
-    duration = (time1-lasttime).total_seconds()
+    duration = (time1-lasttime).total_seconds() #TODO there is probably a bug here: lasttime is not what we have to use if time0 is closer
     output[-1] = (output[-1][0] +d1*duration/period.total_seconds(), output[-1][1])
   
   return output[:-1]
@@ -135,4 +135,39 @@ def perMonth(data):
 	return rebin(data,timedelta(30))
 
 #TODO: add a cleaning method for the history: drop zero values, etc.
+
+#TODO: get the degreeJours per month
+#using the rebin is not enough to get perfect months
+
+#TODO: plot conso vs degres-jours
+
+def degreeJours(t_ext, t_ref = 15, t_max = 15):
+
+  dataStart = t_ext[-1][1].replace(hour=0, minute=0, second=0, microsecond=0) 
+  date(t_ext[-1][1].year, t_ext[-1][1].month, t_ext[-1][1].day)
+  period = timedelta(days=1)
+  output = [ (0,dataStart),  ]
+
+  for ((d0,time0),(d1,time1)) in pairwise(t_ext[::-1]):
+    lasttime = output[-1][1]
+    nexttime = lasttime + period
+    d0 = float(d0)
+    d1 = float(d1)
+
+    # fill the "full days"
+    while time1 > nexttime:
+      duration = (nexttime - lasttime).total_seconds() if time0<lasttime else (nexttime-time0).total_seconds()
+      if d1<t_max:
+          output[-1] = (output[-1][0] + (t_ref-d1)*duration/period.total_seconds(),output[-1][1])
+
+      output.append((0,nexttime)) 
+      lasttime = output[-1][1]
+      nexttime = lasttime + period
+
+    # the last bit
+    duration = (time1-lasttime).total_seconds() if time0<lasttime else (time1-time0).total_seconds()
+    if  d1<t_max:
+	 output[-1] = (output[-1][0] + (t_ref-d1)*duration/period.total_seconds(),output[-1][1])
+  
+  return output[:-1]
 
