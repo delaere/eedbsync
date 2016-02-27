@@ -15,7 +15,12 @@ def pairwise(iterable):
     next(b, None)
     return izip(a, b)
 
-def cummulative(inputgraph):
+def cummulative(inputgraph, conversionFactor = 3600000., samplingPeriod = None):
+	""" Integrates the input to return a cummulative distribution.
+	    By default, it uses the trapeze integration rule.
+	    If samplingPeriod is set, each point is taken independently over that time.
+	    The default conversion factor works for both electricity (watt*s -> kWh) and gaz (dm3/h*s -> m3)
+	"""
 	output = ROOT.TGraph()
 	timevector = inputgraph.GetX()
 	valuesvector = inputgraph.GetY()
@@ -25,9 +30,12 @@ def cummulative(inputgraph):
 		data.append((timevector[i],valuesvector[i]))
 	for i,((t0,d0),(t1,d1)) in enumerate(pairwise(data)):
 		if last is None:
-			last = d0
+			last = 0
 			output.SetPoint(i,t0,0)
-		last += (((d0+d1)/2.)*(t1-t0))/3600000. # watt * seconds -> kWh
+		if samplingPeriod is None:
+			last += (((d0+d1)/2.)*(t1-t0))/conversionFactor
+		else:
+			last += d1*samplingPeriod/conversionFactor
 		output.SetPoint(i+1,t1,last)
 	return output
 
@@ -41,8 +49,10 @@ def graphFromHistory(history):
 
 # method to rebin data.
 # it doesn't work for cumulative data.
+#TODO rework the rebin method: need to fix the start, and consider different modes as for the cummulative method
 #TODO: add mode for min/max
 def rebin(data, period):
+  # TODO: order data first?
 
   output = [ (0,data[-1][1]),  ]
 
@@ -124,17 +134,27 @@ def monthlySum(data):
 	for (entry, timestamp) in data:
 		month = date(timestamp.year, timestamp.month, 1)
 		if not month in output:
-			output[month] = entry
+			output[month] = float(entry)
 		else:
-			output[month] += entry
+			output[month] += float(entry)
 	return output
 
-def histogramFromDictionnary(data, name="histo",title="histo"):
+def dailySum(data):
+	output = {}
+	for (entry, timestamp) in data:
+		day = date(timestamp.year, timestamp.month, timestamp.day)
+		if not day in output:
+			output[day] = float(entry)
+		else:
+			output[day] += float(entry)
+	return output
+
+def histogramFromDictionnary(data, name="histo",title="histo", binLabel="%B %Y"):
 	h = ROOT.TH1F(name,title,len(data),0,len(data))
 	sorted_data = sorted(data.items(), key=operator.itemgetter(0))
 	for i,(date,value) in enumerate(sorted_data):
 		h.SetBinContent(i+1,value)
-		h.GetXaxis().SetBinLabel(i+1,date.strftime("%B %Y"))
+		h.GetXaxis().SetBinLabel(i+1,date.strftime(binLabel))
 	return h
 
 # login
@@ -156,8 +176,10 @@ for temp in temps:
     	gr.Draw()
     graphs.append(gr)
 
-# consommations
-c2 =  ROOT.TCanvas()
+# conso électricité
+c3 =  ROOT.TCanvas()
+c3.Divide(2,2)
+c3.cd(1)
 cgraphs = []
 consos = findDevice(devs,usage_name=u"Consomètre")
 for conso in consos:
@@ -175,17 +197,40 @@ for gr in sorted(cgraphs, key=lambda g:-g.GetHistogram().GetMaximum()) :
 	else:
 		gr.Draw("same")
     
-
-# just the total reading. Instant + integral
+c3.cd(2)
 igraphs = []
-c3 =  ROOT.TCanvas()
 gr0.Draw()
-c4 = ROOT.TCanvas()
+c3.cd(3)
 gr0 = cummulative(gr0)
 igraphs.append(gr0)
 gr0.Draw()
 
 # conso gaz
-
-# conso vs degres-jours
+gaz = findDevice(devs,usage_name=u"Compteur de gaz")[0]
+gazcanvas =  ROOT.TCanvas()
+gazcanvas.Divide(2,2)
+gazcanvas.cd(2)
+gazgr = graphFromHistory(gaz.getHistory())
+gazgrc = cummulative(gazgr, 3600000, 900)
+gazgrc.Draw()
+gazcanvas.cd(1)
+gazhdata = dailySum(gaz.getHistory())
+gazh = histogramFromDictionnary(gazhdata, name="gaz",title="Consommation gaz",binLabel="%d %B %Y")
+gazh.Scale(1/4000.)
+gazh.Draw()
+gazcanvas.cd(3)
+dj = degreeJours(temps[1].getHistory())
+djg = graphFromHistory(dj)
+djg.Draw()
+gazcanvas.cd(4)
+performance = ROOT.TGraph()
+i = 0
+for degree,timestamp in dj:
+	day = date(timestamp.year, timestamp.month, timestamp.day)
+	if day in gazhdata:
+		performance.SetPoint(i,degree,gazhdata[day]/4000.)
+		i+=1
+performance.SetMarkerStyle(ROOT.kFullCircle)
+performance.Draw("AP")
+performance.Fit("pol1")
 
