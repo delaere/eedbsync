@@ -6,6 +6,7 @@ from eedb import eeDbAPI
 import ROOT
 from datetime import datetime, timedelta, date
 from dateutil.relativedelta import relativedelta
+import operator
 
 from itertools import tee, izip
 def pairwise(iterable):
@@ -37,54 +38,6 @@ def graphFromHistory(history):
         time.Set(do.strftime("%Y-%m-%d %H:%M:%S"))
         graph.SetPoint(i,time.Convert(),ROOT.Double(float(to)))
     return graph
-
-# login
-api = eeDbAPI()
-devs = api.getPeriphList()
-
-# temperatures
-c1 = ROOT.TCanvas()
-graphs = []
-temps = findDevice(devs,usage_name=u"Température")
-for temp in temps:
-    history = temp.getHistory()
-    gr = graphFromHistory(history)
-    gr.SetLineColor(30+len(graphs))
-    gr.SetLineWidth(3)
-    if len(graphs):
-    	gr.Draw("same")
-    else:
-    	gr.Draw()
-    graphs.append(gr)
-
-# consommations
-c2 =  ROOT.TCanvas()
-cgraphs = []
-consos = findDevice(devs,usage_name=u"Consomètre")
-for conso in consos:
-    history = conso.getHistory()
-    gr = graphFromHistory(history)
-    gr.SetLineColor(30+len(graphs))
-    gr.SetLineWidth(3)
-    cgraphs.append(gr)
-first = True
-for gr in sorted(cgraphs, key=lambda g:-g.GetHistogram().GetMaximum()) :
-	if first:
-		gr.Draw()
-		first = False
-		gr0 = gr
-	else:
-		gr.Draw("same")
-    
-
-# just the total reading. Instant + integral
-igraphs = []
-c3 =  ROOT.TCanvas()
-gr0.Draw()
-c4 = ROOT.TCanvas()
-gr0 = cummulative(gr0)
-igraphs.append(gr0)
-gr0.Draw()
 
 # method to rebin data.
 # it doesn't work for cumulative data.
@@ -136,11 +89,6 @@ def perMonth(data):
 
 #TODO: add a cleaning method for the history: drop zero values, etc.
 
-#TODO: get the degreeJours per month
-#using the rebin is not enough to get perfect months
-
-#TODO: plot conso vs degres-jours
-
 def degreeJours(t_ext, t_ref = 15, t_max = 15):
 
   dataStart = t_ext[-1][1].replace(hour=0, minute=0, second=0, microsecond=0) 
@@ -170,4 +118,74 @@ def degreeJours(t_ext, t_ref = 15, t_max = 15):
 	 output[-1] = (output[-1][0] + (t_ref-d1)*duration/period.total_seconds(),output[-1][1])
   
   return output[:-1]
+
+def monthlySum(data):
+	output = {}
+	for (entry, timestamp) in data:
+		month = date(timestamp.year, timestamp.month, 1)
+		if not month in output:
+			output[month] = entry
+		else:
+			output[month] += entry
+	return output
+
+def histogramFromDictionnary(data, name="histo",title="histo"):
+	h = ROOT.TH1F(name,title,len(data),0,len(data))
+	sorted_data = sorted(data.items(), key=operator.itemgetter(0))
+	for i,(date,value) in enumerate(sorted_data):
+		h.SetBinContent(i+1,value)
+		h.GetXaxis().SetBinLabel(i+1,date.strftime("%B %Y"))
+	return h
+
+# login
+api = eeDbAPI()
+devs = api.getPeriphList()
+
+# temperatures
+c1 = ROOT.TCanvas()
+graphs = []
+temps = findDevice(devs,usage_name=u"Température")
+for temp in temps:
+    history = temp.getHistory()
+    gr = graphFromHistory(history)
+    gr.SetLineColor(30+len(graphs))
+    gr.SetLineWidth(3)
+    if len(graphs):
+    	gr.Draw("same")
+    else:
+    	gr.Draw()
+    graphs.append(gr)
+
+# consommations
+c2 =  ROOT.TCanvas()
+cgraphs = []
+consos = findDevice(devs,usage_name=u"Consomètre")
+for conso in consos:
+    history = conso.getHistory()
+    gr = graphFromHistory(history)
+    gr.SetLineColor(30+len(graphs))
+    gr.SetLineWidth(3)
+    cgraphs.append(gr)
+first = True
+for gr in sorted(cgraphs, key=lambda g:-g.GetHistogram().GetMaximum()) :
+	if first:
+		gr.Draw()
+		first = False
+		gr0 = gr
+	else:
+		gr.Draw("same")
+    
+
+# just the total reading. Instant + integral
+igraphs = []
+c3 =  ROOT.TCanvas()
+gr0.Draw()
+c4 = ROOT.TCanvas()
+gr0 = cummulative(gr0)
+igraphs.append(gr0)
+gr0.Draw()
+
+# conso gaz
+
+# conso vs degres-jours
 
