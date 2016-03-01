@@ -46,8 +46,9 @@ def degreeJours(t_ext, t_ref = 15, t_max = 15):
   
   return output[:-1]
 
-
-#TODO: add a cleaning method for the history: drop zero values, etc.
+# method to clean the data... quite trivial.
+def cleanData(data, minimum = -float('Inf'), maximum = float('Inf'), exclude=[]):
+	return [(value, time) for (value, time) in data if value>=minimum and value<=maximum and value not in exclude ]
 
 # method to bin unbinned data.
 # it should not be used on already binned or cumulative data.
@@ -85,12 +86,17 @@ class timeGranularity(Enum):
 	day = 3
 	hour = 4
 
+class rebinMode(Enum):
+	normal = 1
+	minimum = 2
+	maximum = 3
+
 # this is the best way to rebin data that are already integrated on a fixed period, like gaz consumption or degrees-jours
 # but it doesn't work when the data points are instant measurements like electricity
 # for these, first use the binHistory method above
-#TODO: add mode for min/max
-def rebin(data, granularity):
+def rebin(data, granularity, mode = rebinMode.normal):
 	assert isinstance(granularity,timeGranularity)
+	assert isinstance(rebinMode,mode)
 	output = {}
 	for (entry, timestamp) in data:
 		if granularity==timeGranularity.hour:
@@ -100,7 +106,12 @@ def rebin(data, granularity):
 		if not time in output:
 			output[time] = float(entry)
 		else:
-			output[time] += float(entry)
+			if mode == rebinMode.normal:
+				output[time] += float(entry)
+			elif mode == rebinMode.minimum:
+				output[time] = min(float(entry),output[time])
+			elif mode == rebinMode.maximum:
+				output[time] = max(float(entry),output[time])
 	return output
 
 # make an histogram from the methods above
