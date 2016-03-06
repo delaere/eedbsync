@@ -67,8 +67,9 @@ class eeHistory:
     class timeGranularity(Enum):
         year = 1
         month = 2
-        day = 3
-        hour = 4
+	week = 3
+        day = 4
+        hour = 5
     
     class rebinMode(Enum):
         normal = 1
@@ -89,7 +90,9 @@ class eeHistory:
     		if granularity==eeHistory.timeGranularity.hour:
     			time = datetime(timestamp.year, timestamp.month, timestamp.day, timestamp.hour, 0, 0)
     		else:
-    			time = date(timestamp.year, timestamp.month if granularity!=eeHistory.timeGranularity.year else 0, timestamp.day if granularity==eeHistory.timeGranularity.day else 0)
+    			time = date(timestamp.year, timestamp.month if granularity!=eeHistory.timeGranularity.year else 1, timestamp.day if (granularity==eeHistory.timeGranularity.day or granularity==eeHistory.timeGranularity.week) else 0)
+			if granularity==eeHistory.timeGranularity.week:
+				time = time - timedelta(days=time.weekday())
     		if not time in output:
     			output[time] = float(entry)
     		else:
@@ -248,12 +251,14 @@ gazgr = gaz.graph()
 gazgrc = cummulative(gazgr, 3600000, 900)
 gazgrc.Draw()
 gazcanvas.cd(1)
-gaz.rebin(eeHistory.timeGranularity.day)
+gaz.rebin(eeHistory.timeGranularity.week)
+gaz.cleanData(80000,400000)
 gazh = gaz.histogram(name="gaz",title="Consommation gaz",binLabel="%d %B %Y")
 gazh.Scale(1/4000.)
 gazh.Draw()
 gazcanvas.cd(3)
-dj = eeHistory(degreeJours(temps[1].getHistory()))
+dj = eeHistory(degreeJours(temps[1].getHistory()), binned = True)
+dj.rebin(eeHistory.timeGranularity.week)
 djg = dj.graph()
 djg.Draw()
 gazcanvas.cd(4)
