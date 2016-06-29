@@ -59,11 +59,11 @@ class eeLocalDb:
 		print "add",room_id,room_name
 		self.cur.execute("INSERT INTO room (room_id,room_name) VALUES(%s,%s)",(room_id,room_name))
 
-#TODO: fix this
-# eedbSync.py:65: Warning: Incorrect integer value: '' for column 'parent_periph_id' at row 1
 	def addDevice(self,device):
 		print "add",device.periph_id,device.name
 		values = (device.periph_id,device.parent_periph_id,device.name,device.room_id,device.usage_id,device.creation_date.strftime("%Y-%m-%d %H:%M:%S"))
+                if str(values[1]) is '': # avoids a Warning: Incorrect integer value: '' for column 'parent_periph_id' at row 1"
+                    values = (device.periph_id,0,device.name,device.room_id,device.usage_id,device.creation_date.strftime("%Y-%m-%d %H:%M:%S"))
 		self.cur.execute("INSERT INTO device(periph_id,parent_periph_id,name,room_id,usage_id,creation_date) VALUES(%s,%s,%s,%s,%s,%s)", values)
 
 	def insertHistory(self,dev,history):
