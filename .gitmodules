@@ -1,0 +1,3 @@
+[submodule "python-opentsdbclient"]
+	path = python-opentsdbclient
+	url = git@github.com:delaere/python-opentsdbclient.git
