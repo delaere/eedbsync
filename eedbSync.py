@@ -5,6 +5,7 @@ import sys
 import time
 from datetime import datetime
 from eedomus import eeError,eeDevice,findDevice,eeDomusAPI
+from eetsdb import eeTSDB
 from credentials import api_user,api_secret
 
 def getAPI():
@@ -88,6 +89,7 @@ def doSync():
 	api = getAPI()
 	devices = api.getPeriphList()
 	localDb = eeLocalDb('localhost','eedomus','eedomus','eedb')
+        eetsdb  = eeTSDB('localhost',4242)
 	lastSync = localDb.getLastSync()
 	newDevices = []
 	for dev in devices:
@@ -107,6 +109,8 @@ def doSync():
 		print "Downloading history for", dev.name
 		history = dev.getHistory(None,end_date) if dev.periph_id in newDevices else dev.getHistory(begin_date,end_date)
 		localDb.insertHistory(dev, history)
+                #TODO: uncomment once validated
+                #eetsdb.migrate(device=dev,history=history)
 	
 	# register the sync operation
 	localDb.registerSync(end_date)
