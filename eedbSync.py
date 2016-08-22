@@ -5,7 +5,7 @@ import sys
 import time
 from datetime import datetime
 from eedomus import eeError,eeDevice,findDevice,eeDomusAPI
-from eetsdb import eeTSDB
+from eetsdb import eeTSDB,eetsdbMapping
 from credentials import api_user,api_secret
 
 def getAPI():
@@ -83,6 +83,9 @@ class eeLocalDb:
 		self.con.commit()
 		self.con.close()
 
+def isInTSDB(dev):
+    # check that the metric is in eetsdbMapping
+    return dev.periph_id in eetsdbMapping
 
 def doSync():
 	# first fill the device table
@@ -109,8 +112,9 @@ def doSync():
 		print "Downloading history for", dev.name
 		history = dev.getHistory(None,end_date) if dev.periph_id in newDevices else dev.getHistory(begin_date,end_date)
 		localDb.insertHistory(dev, history)
-                #TODO: uncomment once validated
-                #eetsdb.migrate(device=dev,history=history)
+                #TODO: check this: seems that migrate is not called...
+                if isInTSDB(dev):
+                    eetsdb.migrate(device=dev,history=history)
 	
 	# register the sync operation
 	localDb.registerSync(end_date)

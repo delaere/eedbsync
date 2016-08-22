@@ -1,16 +1,68 @@
-import tempfile
-import gzip
-import subprocess
+import socket
+import string
+import unicodedata as ud
+from datetime import datetime
+
 from opentsdbclient.client import RESTOpenTSDBClient as OpenTSDBClient
 from opentsdbclient.opentsdberrors import OpenTSDBError
-from opentsdbclient.opentsdbobjects import OpenTSDBTimeSeries
+from opentsdbclient.opentsdbobjects import OpenTSDBTimeSeries, OpenTSDBMeasurement
 
 
 # this dictionnary maps eeDevices to openTSDB metrics
 
 eetsdbMapping = {
-    12345 : "temperature",
-    12346 : "humidity"
+    258506 : "memory.free",
+    258507 : "disk.free",
+    258508 : "communication.errors",
+    268580 : "state",
+    350073 : "state",
+    268177 : "temperature",
+    268223 : "temperature",
+    268224 : "humidity",
+    271760 : "wind.speed",
+    271761 : "rainfall",
+    271762 : "visibility",
+    271766 : "pressure",
+    271992 : "index",
+    268234 : "state",
+    268237 : "state",
+    268238 : "temperature",
+    342898 : "state",
+    342899 : "temperature",
+    343296 : "state",
+    343297 : "temperature",
+    268218 : "temperature",
+    268219 : "CO2",
+    268220 : "humidity",
+    268221 : "pressure",
+    268222 : "noise.level",
+    268267 : "noise.level",
+    268359 : "light",
+    268360 : "appliance",
+    268361 : "applicance",
+    268362 : "applicance",
+    268363 : "applicance",
+    268364 : "applicance",
+    268365 : "power.consumption",
+    268366 : "power.consumption",
+    268367 : "power.consumption",
+    268368 : "power.consumption",
+    268369 : "power.consumption",
+    268370 : "power.consumption",
+    325388 : "light",
+    325389 : "power.consumption",
+    348904 : "light",
+    271741 : "applicance",
+    271742 : "power.consumption",
+    271747 : "movement",
+    271748 : "temperature",
+    271749 : "luminosity",
+    271773 : "state",
+    273229 : "state",
+    349023 : "appliance",
+    349024 : "power.consumption",
+    345835 : "power.consumption",
+    349001 : "gas.consumption",
         }
 
 class eeTSDB:
@@ -26,29 +78,55 @@ class eeTSDB:
         timeseries = self.mkTimeseries(device)
         self.registerTS(timeseries)
         if history is None:
-            history = device.getHistory(self,start_date, end_date)
+            history = device.getHistory(start_date, end_date)
         measurements = self.mkMeasurements(timeseries,history)
         self.insertHistory(measurements)
+        self.addAnnotation(timeseries)
 
     def registerTS(self, timeseries):
         try:
             res = self.client_.search("LOOKUP",metric=timeseries.metric, tags=timeseries.tags)
-        except opentsdberrors.OpenTSDBError:
+        except OpenTSDBError:
             timeseries.assign_uid(self.client_)
 
     def insertHistory(self, measurements):
-        return self.client.put_measurements(measurements, summary=True, compress=True)
+        return self.client_.put_measurements(measurements, summary=True, compress=True)
 
     def mkTimeseries(self,device):
         metric = eetsdbMapping[device.periph_id]
-        tags = { "periph_id":device.periph_id, 
-                 "parent_periph_id":device.parent_periph_id,
-                 "room":device.room_name,
-                 "name":device.name,
-                 "usage":device.usage_name}
+        tags = { "periph_id":str(device.periph_id), 
+                 "room":self.cureString(device.room_name),
+                 "name":self.cureString(device.name)}
         return OpenTSDBTimeSeries(metric,tags)
 
     def mkMeasurements(self,timeseries,history):
         # history is a vector of pairs (measurement,timestamp)
-        return [OpenTSDBMeasurement(timeseries, timestamp, value) for (value,timestamp) in history]
+        try:
+            return [OpenTSDBMeasurement(timeseries, int(timestamp.strftime("%s")), self.translateValue(value)) for (value,timestamp) in history]
+        except:
+            print("Unable to create valid measurements.")
+            if len(history)>0: print "Example:",history[0]
+            return []
+
+    def addAnnotation(self,timeseries, isGlobal=False):
+        timeseries.loadFrom(self.client_)
+        tsuid = timeseries.metadata.tsuid
+        description = "Migrated from eedb"
+        custom={"host":socket.gethostname()}
+        self.client_.set_annotation(int(datetime.now().strftime("%s")), tsuid=tsuid, description=description, custom=custom)
+
+    def cureString(self,thestring):
+	asciichars = string.ascii_letters + "0123456789-_./"
+        return ''.join([c for c in thestring.replace(" ","_").replace("[","_").replace("]","_") if c in asciichars or ud.category(unicode(c)) in ['Ll', 'Lu']])
+
+# can we do better? We are stuck since eedomus never sends the raw value and doesn't give access to the dict.
+    def translateValue(self,value):
+        if value in ["On", "ON", u'Activ\xe9e', "Alarme", "Ouvert", "Mouvement", "Joignable"]: return 1
+        if value in ["Off","OFF", u'D\xc3\xa9sactiv\xc3\xa9e', "OK", u'Ferm\xe9', "Aucun mouvement", "Non joignable", "--"]: return 0
+        if value in ["Alerte", "Vibration"]: return 2
+        try:
+            return float(''.join([c for c in value if c in "-0123456789."]))
+        except:
+            print value,"cannot be translated"
+            return 0
 
