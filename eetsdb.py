@@ -93,7 +93,7 @@ class eeTSDB:
         return self.client_.put_measurements(measurements, summary=True, compress=True)
 
     def mkTimeseries(self,device):
-        metric = eetsdbMapping[device.periph_id]
+        metric = eetsdbMapping[int(device.periph_id)]
         tags = { "periph_id":str(device.periph_id), 
                  "room":self.cureString(device.room_name),
                  "name":self.cureString(device.name)}
