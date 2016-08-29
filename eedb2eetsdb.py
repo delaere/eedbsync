@@ -9,13 +9,6 @@ from dateutil.relativedelta import relativedelta
 
 import pprint
 
-#TODO add a funtion to submit integrated consumptions (electricity & gas) rather than instant values.
-#When working with time series, it is actually recommended to rather submit data as the integral (i.e. a monotinically increasing counter). µ
-#OpenTSDB can then "differentiate" this using the rate function.
-
-# look into the ROOT code to do this properly.
-# might also add a hook to fix the normalization issue in eedomus (time-dependent scale factor)
-
 def migrate(replace=False,yearsback=10):
     api = eeDbAPI()
     devices = api.getPeriphList()
@@ -28,6 +21,7 @@ def migrate(replace=False,yearsback=10):
             continue
         # check if the TS is there already. If yes, look for the last point and continue from there
         ts = eetsdb.mkTimeseries(dev)
+        eetsdb.registerTS(ts)
         begin = datetime.now()-relativedelta(years=yearsback)
         try:
             res = client.search("LOOKUP",metric=ts.metric, tags=ts.tags)
@@ -50,12 +44,12 @@ def migrate(replace=False,yearsback=10):
                     if len(answer)>0:
                         last = max([ int(k) for k in answer[0]["dps"].keys() ])
                         begin = datetime.fromtimestamp(last+1)
-                    else:
-                        print "unexpected answer to query... potential issue here..."
-                        print answer
             # migrate that dev
             print "migrating",dev.periph_id, dev.name, dev.room_name, dev.usage_name, "from", begin
             eetsdb.migrate(device=dev,start_date=begin, end_date=None)
-        except OpenTSDBError:
+        except OpenTSDBError as e:
             print "Exception while processing",dev.periph_id, dev.name, dev.room_name, dev.usage_name,"Skipping."
+            raise
 
+# TODO: add main with command-line options
+# replace=False, yearsback=10, dryRun=False
