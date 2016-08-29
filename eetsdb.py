@@ -225,8 +225,8 @@ class eeTSDB:
 	asciichars = string.ascii_letters + "0123456789-_./"
         return ''.join([c for c in thestring.replace(" ","_").replace("[","_").replace("]","_") if c in asciichars or ud.category(unicode(c)) in ['Ll', 'Lu']])
 
-    def cureValues(timeseries,history):
-        recipe = eetsdbrecipes.get(int(timeseries.metadata.tsuid),lambda x:x)
+    def cureValues(self,timeseries,history):
+        recipe = eetsdbrecipes.get(int(timeseries.tags["periph_id"]),lambda x:x)
         return [(recipe(self.translateValue(value)),timestamp) for (value,timestamp) in history]
 
     def translateValue(self,value):
