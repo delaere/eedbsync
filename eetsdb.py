@@ -226,7 +226,8 @@ class eeTSDB:
         return ''.join([c for c in thestring.replace(" ","_").replace("[","_").replace("]","_") if c in asciichars or ud.category(unicode(c)) in ['Ll', 'Lu']])
 
     def cureValues(self,timeseries,history):
-        recipe = eetsdbrecipes.get(int(timeseries.tags["periph_id"]),lambda x:x)
+        recipeName = eetsdbrecipes.get(int(timeseries.tags["periph_id"]), None)
+        recipe = getattr(cureValues, recipeName) if recipeName is not None else lambda x:x
         return [(recipe(self.translateValue(value)),timestamp) for (value,timestamp) in history]
 
     def translateValue(self,value):
