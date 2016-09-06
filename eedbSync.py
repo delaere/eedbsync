@@ -67,6 +67,12 @@ class eeLocalDb:
                     values = (device.periph_id,0,device.name,device.room_id,device.usage_id,device.creation_date.strftime("%Y-%m-%d %H:%M:%S"))
 		self.cur.execute("INSERT INTO device(periph_id,parent_periph_id,name,room_id,usage_id,creation_date) VALUES(%s,%s,%s,%s,%s,%s)", values)
 
+        def updateDevice(self,device):
+                self.cur.execute("SELECT name FROM device WHERE periph_id = %s;",(device.periph_id,))
+                oldname = self.cur.fetchone()[0]
+                if oldname.decode("latin1")!=device.name:
+                    self.cur.execute("UPDATE device set name=%s WHERE periph_id = %s;",(device.name,device.periph_id,))
+
 	def insertHistory(self,dev,history):
 		print "Inserting", len(history), "values for", dev.name
 		for measurement in history:
@@ -101,6 +107,8 @@ def doSync():
 		if not localDb.hasDevice(dev):
 			localDb.addDevice(dev)
 			newDevices.append(dev.periph_id)
+                else:
+                        localDb.updateDevice(dev) #update the name in local db, if needed.
 	
 	# now, run on devices and update history
 	# we set the end to be sure that it is the same for all devices

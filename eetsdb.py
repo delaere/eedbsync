@@ -14,6 +14,8 @@ from opentsdbclient.opentsdbquery import OpenTSDBtsuidSubQuery, OpenTSDBQuery
 from recipes import cureValues
 
 #TODO: put units in metadata
+#TODO: put most recent name in metadata
+#other?
 
 # this dictionnary maps eeDevices to openTSDB metrics
 #TODO: this could be in a json file.
@@ -179,6 +181,9 @@ class eeTSDB:
         if history is None:
             history = device.getHistory(start_date, end_date)
         measurements = self.mkMeasurements(timeseries,history)
+        if len(measurements)>0:
+            print "Inserting %d measurements for the following timeseries:"%len(measurements)
+            print timeseries.getMap(full=False).__str__()
         self.insertHistory(measurements)
         self.addAnnotation(timeseries)
 
@@ -192,27 +197,35 @@ class eeTSDB:
         return self.client_.put_measurements(measurements, summary=True, compress=True)
 
     def mkTimeseries(self,device):
-        metric = eetsdbMapping[int(device.periph_id)]
-        tags = { "periph_id":str(device.periph_id), 
-                 "room":self.cureString(device.room_name),
-                 "name":self.cureString(device.name)}
-        return OpenTSDBTimeSeries(metric,tags)
+        try:
+            lookup = self.client_.search("LOOKUP",tags={"periph_id":str(device.periph_id)})
+            if lookup["totalResults"]==0: # create if needed
+                metric = eetsdbMapping[int(device.periph_id)]
+                tags = { "periph_id":str(device.periph_id), 
+                         "room":self.cureString(device.room_name),
+                         "name":self.cureString(device.name)}
+                return OpenTSDBTimeSeries(metric,tags)
+            elif lookup["totalResults"]==1: # take existing one if possible
+                return OpenTSDBTimeSeries(tsuid=lookup["results"][0]["tsuid"]).loadFrom(self.client_)
+            else: # abort in case of ambiguity
+                raise RuntimeError("More than one time series with tsuid = %s"%str(device.periph_id),lookup)
+        except OpenTSDBError:
+                metric = eetsdbMapping[int(device.periph_id)]
+                tags = { "periph_id":str(device.periph_id), 
+                         "room":self.cureString(device.room_name),
+                         "name":self.cureString(device.name)}
+                return OpenTSDBTimeSeries(metric,tags)
 
     def mkMeasurements(self,timeseries,history):
         # history is a vector of pairs (measurement,timestamp)
         history = self.cureValues(timeseries,history)
-        try:
-            if eedbintegration[int(timeseries.tags["periph_id"])][0]:
-                conversionFactor=eedbintegration[int(timeseries.tags["periph_id"])][2]
-                samplingPeriod=eedbintegration[int(timeseries.tags["periph_id"])][1]
-                last= self.getLastValue(timeseries)
-                return [OpenTSDBMeasurement(timeseries, int(timestamp.strftime("%s")),value) for (value,timestamp) in self.cummulative(history, conversionFactor, samplingPeriod, last)]
-            else:
-                return [OpenTSDBMeasurement(timeseries, int(timestamp.strftime("%s")),value) for (value,timestamp) in history]
-        except :
-            print("Unable to create valid measurements.")
-            print sys.exc_info()[0]
-            return []
+        if eedbintegration[int(timeseries.tags["periph_id"])][0]:
+            conversionFactor=eedbintegration[int(timeseries.tags["periph_id"])][2]
+            samplingPeriod=eedbintegration[int(timeseries.tags["periph_id"])][1]
+            last= self.getLastValue(timeseries)
+            return [OpenTSDBMeasurement(timeseries, int(timestamp.strftime("%s")),value) for (value,timestamp) in self.cummulative(history, conversionFactor, samplingPeriod, last)]
+        else:
+            return [OpenTSDBMeasurement(timeseries, int(timestamp.strftime("%s")),value) for (value,timestamp) in history]
 
     def addAnnotation(self,timeseries, isGlobal=False):
         timeseries.loadFrom(self.client_)
@@ -246,9 +259,7 @@ class eeTSDB:
     	"""
         data = sorted(inputHistory, key=lambda entry:entry[1])
         output = []
-    	for i,((ud0,t0),(ud1,t1)) in enumerate(pairwise(data)):
-                d0 = self.translateValue(ud0)
-                d1 = self.translateValue(ud1)
+    	for i,((d0,t0),(d1,t1)) in enumerate(pairwise(data)):
     		if last is None:
     			last = 0
                         output.append((0,t0))

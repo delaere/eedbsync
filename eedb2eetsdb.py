@@ -8,6 +8,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 import pprint
+import time
 
 def migrate(replace=False,yearsback=10):
     api = eeDbAPI()
@@ -38,6 +39,7 @@ def migrate(replace=False,yearsback=10):
                     query = OpenTSDBQuery([sq],"%dy-ago"%yearsback,delete=True)
                     answer = client.query(query)
                     begin = datetime.now()-relativedelta(years=yearsback)
+                    time.sleep(5)
                 else:
                     query = OpenTSDBQuery([sq],"%dy-ago"%yearsback)
                     answer = client.query(query)
@@ -51,5 +53,8 @@ def migrate(replace=False,yearsback=10):
             print "Exception while processing",dev.periph_id, dev.name, dev.room_name, dev.usage_name,"Skipping."
             raise
 
-# TODO: add main with command-line options
+# TODO: add command-line options
 # replace=False, yearsback=10, dryRun=False
+if __name__ == "__main__":
+    migrate()
+

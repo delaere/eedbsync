@@ -11,3 +11,11 @@ class cureValues:
             return reading/1000.
         else:
             return reading
+
+    @staticmethod
+    def fix_indoorTemperature(reading):
+        # sometimes drops to zero
+        if reading<1e-3:
+            return None
+        else:
+            return reading
