@@ -11,12 +11,12 @@ from opentsdbclient.opentsdberrors import OpenTSDBError
 from opentsdbclient.opentsdbobjects import OpenTSDBTimeSeries, OpenTSDBMeasurement
 from opentsdbclient.opentsdbquery import OpenTSDBtsuidSubQuery, OpenTSDBQuery
 
-from recipes import cureValues
+#TODO: find a way to "chain" time series
+# this is: when a device replaces another, in the integration mode, one should "take the last value and continue". Sometimes, a scale factor has to be applied.
+# alternatively, one could have "virtual periph_ids", or a way to say: that periph_id is to be translated as the old one. The recipe for scale factors could be in the existing fix_measurement mechanism.
+# we could generalize the tracking of changes in the TS name... or not.
 
-#TODO: put units in metadata
-#TODO: put most recent name in metadata
-#other?
-
+# options
 import yaml
 with open("config.yml", 'r') as ymlfile:
     cfg = yaml.load(ymlfile)
@@ -25,13 +25,16 @@ eetsdbMapping = cfg["eetsdbMapping"] #this dictionnary maps eeDevices to openTSD
 eedbintegration = cfg["eedbintegration"] # When working with time series, it is actually recommended to rather submit data as the integral (i.e. a monotinically increasing counter).
 eetsdbvalues = cfg["eetsdbvalues"] # non-numeirc eedomus values and their translation
 eetsdbrecipes = cfg["eetsdbrecipes"] #recipes to be used to correct some readings.
+from recipes import cureValues
 
+# small utility
 def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..."
     a, b = tee(iterable)
     next(b, None)
     return izip(a, b)
 
+# main class
 class eeTSDB:
     """Simple utility to migrate the history from eedb to eetsdb"""
 
@@ -63,6 +66,11 @@ class eeTSDB:
 
     def insertHistory(self, measurements):
         return self.client_.put_measurements(measurements, summary=True, compress=True)
+
+# TS METADATA:
+# self.displayName = kwargs.get("displayName",'') # TODO: put most recent name in metadata
+# self.units = kwargs.get("units",'') #TODO: put units in metadata. Should come from the yaml cfg
+# self.custom = kwargs["custom"] if kwargs.get("custom",None) is not None else {} # TODO: other: creation_date,usage_name
 
     def mkTimeseries(self,device):
         try:
@@ -131,6 +139,10 @@ class eeTSDB:
     		if last is None:
     			last = 0
                         output.append((0,t0))
+                else:
+                    #TODO: fix this: have to add one entry for the first measurement. 
+                    # for that, one needs last, d0, t0, but also the time of the last measurement 
+                    pass
     		if samplingPeriod is None:
                         if integrationMode=="trapeze":
         			last += (((d0+d1)/2.)*(t1-t0).total_seconds())/conversionFactor # good approximation for continuous functions

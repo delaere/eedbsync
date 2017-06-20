@@ -52,6 +52,8 @@ eetsdbMapping:
     349024 : "power.consumption"
     345835 : "power.consumption"
     349001 : "gas.consumption"
+    465334 : "power.consumption"
+    465335 : "power.consumption"
 
 #When working with time series it is actually recommended to rather submit data as the integral (i.e. a monotinically increasing counter].
 #OpenTSDB can then "differentiate" this using the rate function.
@@ -108,6 +110,9 @@ eedbintegration:
     349024 : !!python/tuple [True,null,3600000.] #(watt*s -> kWh)
     345835 : !!python/tuple [True,null,3600000.] #(watt*s -> kWh)
     349001 : !!python/tuple [True,900,3600.]     #(m3 -> /h*s -> m3)
+    465334 : !!python/tuple [True,null,3600000.] #(watt*s -> kWh)
+    465335 : !!python/tuple [False,0,0] # already in Wh
+
 
 # non-numeirc eedomus values and their translation
 eetsdbvalues:
