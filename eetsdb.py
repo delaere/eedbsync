@@ -19,7 +19,7 @@ from opentsdbclient.opentsdbquery import OpenTSDBtsuidSubQuery, OpenTSDBQuery
 # options
 import yaml
 with open("config.yml", 'r') as ymlfile:
-    cfg = yaml.load(ymlfile)
+    cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
 eetsdbMapping = cfg["eetsdbMapping"] #this dictionnary maps eeDevices to openTSDB metrics
 eedbintegration = cfg["eedbintegration"] # When working with time series, it is actually recommended to rather submit data as the integral (i.e. a monotinically increasing counter).
@@ -117,7 +117,7 @@ class eeTSDB:
     def cureValues(self,timeseries,history):
         recipeName = eetsdbrecipes.get(int(timeseries.tags["periph_id"]), None)
         recipe = getattr(cureValues, recipeName) if recipeName is not None else lambda x:x
-        return [(recipe(self.translateValue(value)),timestamp) for (value,timestamp) in history]
+        return filter(lambda x:x[0] is not None,[(recipe(self.translateValue(value)),timestamp) for (value,timestamp) in history])
 
     def translateValue(self,value):
 	if unidecode(value).lower() in eetsdbvalues: return eetsdbvalues[unidecode(value).lower()]

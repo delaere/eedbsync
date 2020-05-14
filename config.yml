@@ -1,7 +1,5 @@
 # the selection of datapoints and the name of the corresponding metric
 eetsdbMapping:
-    258506 : "memory.free"
-    258507 : "disk.free"
     258508 : "communication.errors"
     268580 : "state"
     350073 : "state"
@@ -54,6 +52,11 @@ eetsdbMapping:
     349001 : "gas.consumption"
     465334 : "power.consumption"
     465335 : "power.consumption"
+    932717 : "state"
+    932473 : "temperature"
+    932472 : "movement"
+    932474 : "luminosity"
+
 
 #When working with time series it is actually recommended to rather submit data as the integral (i.e. a monotinically increasing counter].
 #OpenTSDB can then "differentiate" this using the rate function.
@@ -112,7 +115,10 @@ eedbintegration:
     349001 : !!python/tuple [True,900,3600.]     #(m3 -> /h*s -> m3)
     465334 : !!python/tuple [True,null,3600000.] #(watt*s -> kWh)
     465335 : !!python/tuple [False,0,0] # already in Wh
-
+    932717 : !!python/tuple [False,0,0]
+    932473 : !!python/tuple [False,0,0]
+    932472 : !!python/tuple [False,0,0]
+    932474 : !!python/tuple [False,0,0]
 
 # non-numeirc eedomus values and their translation
 eetsdbvalues:
@@ -140,4 +146,5 @@ eetsdbrecipes:
         349001 : "fix_gazreading"
         343297 : "fix_indoorTemperature"
         342899 : "fix_indoorTemperature"
+        271748 : "fix_indoorTemperature"
 

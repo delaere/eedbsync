@@ -14,7 +14,7 @@ class cureValues:
 
     @staticmethod
     def fix_indoorTemperature(reading):
-        # sometimes drops to zero
+        # sometimes drops to zero or negative
         if reading<1e-3:
             return None
         else:
