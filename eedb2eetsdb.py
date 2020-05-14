@@ -20,7 +20,7 @@ def migrate(replace=False,yearsback=10,dryrun=False):
     for dev in devices:
         # check that the metric is in eetsdbMapping
         if not dev.periph_id in eetsdbMapping:
-            print "Skipping", dev.periph_id, dev.name, dev.room_name, dev.usage_name
+            print(("Skipping", dev.periph_id, dev.name, dev.room_name, dev.usage_name))
             continue
         # check if the TS is there already. If yes, look for the last point and continue from there
         ts = eetsdb.mkTimeseries(dev)
@@ -29,9 +29,9 @@ def migrate(replace=False,yearsback=10,dryrun=False):
         try:
             res = client.search("LOOKUP",metric=ts.metric, tags=ts.tags)
             if res["totalResults"]>1 :
-                print "Time series:"
+                print("Time series:")
                 pprint.pprint(ts.getMap())
-                print "Search result:"
+                print("Search result:")
                 pprint.pprint(res)
                 raise RuntimeError("The timeseries is ambiguous. This should not happen.")
             elif res["totalResults"]==1:
@@ -46,13 +46,13 @@ def migrate(replace=False,yearsback=10,dryrun=False):
                     query = OpenTSDBQuery([sq],"%dy-ago"%yearsback)
                     answer = client.query(query)
                     if len(answer)>0:
-                        last = max([ int(k) for k in answer[0]["dps"].keys() ])
+                        last = max([ int(k) for k in list(answer[0]["dps"].keys()) ])
                         begin = datetime.fromtimestamp(last+1)
             # migrate that dev
-            print "migrating",dev.periph_id, dev.name, dev.room_name, dev.usage_name, "from", begin
+            print(("migrating",dev.periph_id, dev.name, dev.room_name, dev.usage_name, "from", begin))
             if not dryrun: eetsdb.migrate(device=dev,start_date=begin, end_date=None)
         except OpenTSDBError as e:
-            print "Exception while processing",dev.periph_id, dev.name, dev.room_name, dev.usage_name,"Skipping."
+            print(("Exception while processing",dev.periph_id, dev.name, dev.room_name, dev.usage_name,"Skipping."))
             raise
 
 class MyOptionParser: 

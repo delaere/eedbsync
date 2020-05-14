@@ -4,7 +4,7 @@ import unicodedata as ud
 import sys
 from unidecode import unidecode
 from datetime import datetime
-from itertools import tee, izip
+from itertools import tee
 
 from opentsdbclient.client import RESTOpenTSDBClient as OpenTSDBClient
 from opentsdbclient.opentsdberrors import OpenTSDBError
@@ -32,7 +32,7 @@ def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..."
     a, b = tee(iterable)
     next(b, None)
-    return izip(a, b)
+    return list(zip(a, b))
 
 # main class
 class eeTSDB:
@@ -53,8 +53,8 @@ class eeTSDB:
             history = device.getHistory(start_date, end_date)
         measurements = self.mkMeasurements(timeseries,history)
         if len(measurements)>0:
-            print "Inserting %d measurements for the following timeseries:"%len(measurements)
-            print timeseries.getMap(full=False).__str__()
+            print(("Inserting %d measurements for the following timeseries:"%len(measurements)))
+            print((timeseries.getMap(full=False).__str__()))
         self.insertHistory(measurements)
         self.addAnnotation(timeseries)
 
@@ -111,47 +111,47 @@ class eeTSDB:
         self.client_.set_annotation(int(datetime.now().strftime("%s")), tsuid=tsuid, description=description, custom=custom)
 
     def cureString(self,thestring):
-	asciichars = string.ascii_letters + "0123456789-_./"
-        return ''.join([c for c in thestring.replace(" ","_").replace("[","_").replace("]","_") if c in asciichars or ud.category(unicode(c)) in ['Ll', 'Lu']])
+        asciichars = string.ascii_letters + "0123456789-_./"
+        return ''.join([c for c in thestring.replace(" ","_").replace("[","_").replace("]","_") if c in asciichars or ud.category(str(c)) in ['Ll', 'Lu']])
 
     def cureValues(self,timeseries,history):
         recipeName = eetsdbrecipes.get(int(timeseries.tags["periph_id"]), None)
         recipe = getattr(cureValues, recipeName) if recipeName is not None else lambda x:x
-        return filter(lambda x:x[0] is not None,[(recipe(self.translateValue(value)),timestamp) for (value,timestamp) in history])
+        return [x for x in [(recipe(self.translateValue(value)),timestamp) for (value,timestamp) in history] if x[0] is not None]
 
     def translateValue(self,value):
-	if unidecode(value).lower() in eetsdbvalues: return eetsdbvalues[unidecode(value).lower()]
+        if unidecode(value).lower() in eetsdbvalues: return eetsdbvalues[unidecode(value).lower()]
         try:
             return float(''.join([c for c in value if c in "-0123456789."]))
         except:
-            print value,"cannot be translated"
+            print((value,"cannot be translated"))
             return 0
 
     def cummulative(self,inputHistory, conversionFactor = 3600000., samplingPeriod = None, last = None, integrationMode="trapeze"):
-    	""" Integrates the input to return a cummulative distribution.
-    	    By default, it uses the trapeze integration rule.
-    	    If samplingPeriod is set, each point is taken independently over that time.
-    	    The default conversion factor works for both electricity (watt*s -> kWh) and gaz (dm3/h*s -> m3)
-    	"""
+        """ Integrates the input to return a cummulative distribution.
+            By default, it uses the trapeze integration rule.
+            If samplingPeriod is set, each point is taken independently over that time.
+            The default conversion factor works for both electricity (watt*s -> kWh) and gaz (dm3/h*s -> m3)
+        """
         data = sorted(inputHistory, key=lambda entry:entry[1])
         output = []
-    	for i,((d0,t0),(d1,t1)) in enumerate(pairwise(data)):
-    		if last is None:
-    			last = 0
+        for i,((d0,t0),(d1,t1)) in enumerate(pairwise(data)):
+                if last is None:
+                        last = 0
                         output.append((0,t0))
                 else:
                     #TODO: fix this: have to add one entry for the first measurement. 
                     # for that, one needs last, d0, t0, but also the time of the last measurement 
                     pass
-    		if samplingPeriod is None:
+                if samplingPeriod is None:
                         if integrationMode=="trapeze":
-        			last += (((d0+d1)/2.)*(t1-t0).total_seconds())/conversionFactor # good approximation for continuous functions
+                                last += (((d0+d1)/2.)*(t1-t0).total_seconds())/conversionFactor # good approximation for continuous functions
                         else:
                                 last += d0*(t1-t0).total_seconds()/conversionFactor # best when the series "updates on changes"
-    		else:
-    			last += d0*samplingPeriod/conversionFactor # when measurements are defined on a fixed interval and are not continuous
+                else:
+                        last += d0*samplingPeriod/conversionFactor # when measurements are defined on a fixed interval and are not continuous
                 output.append((last,t1))
-    	return output
+        return output
 
     def getLastValue(self,timeseries):
         # issue with query last, so do it by hand with some large backsearch. Heavy...
@@ -159,11 +159,11 @@ class eeTSDB:
         query = OpenTSDBQuery([sq],"1y-ago")
         answer = self.client_.query(query)
         if len(answer)>0:
-            if len(answer[0]["dps"].keys()) >0:
-                last = max([ int(k) for k in answer[0]["dps"].keys()  ])
+            if len(list(answer[0]["dps"].keys())) >0:
+                last = max([ int(k) for k in list(answer[0]["dps"].keys())  ])
                 return answer[0]["dps"][str(last)]
             else:
-                print answer
+                print(answer)
         else:
             return None
 

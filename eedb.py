@@ -13,7 +13,7 @@ class eeDbAPI:
 		self.cur = self.con.cursor()
 		self.cur.execute("SELECT VERSION()")
 		ver = self.cur.fetchone()
-		print "Database version : %s " % ver
+		print(("Database version : %s " % ver))
 
 	# Test authentification parameters:
 	def authTest(self):
@@ -26,7 +26,7 @@ class eeDbAPI:
 		(measurement,timestamp) = self.cur.fetchone()
 		self.cur.execute("SELECT name FROM device WHERE periph_id=%s",(periph_id,))
 		name = self.cur.fetchone()[0]
-		caracs = { u"name":name, u"last_value":measurement, u"last_value_change":timestamp }
+		caracs = { "name":name, "last_value":measurement, "last_value_change":timestamp }
 		return caracs
 
 	# Get periph list attached to your user account:

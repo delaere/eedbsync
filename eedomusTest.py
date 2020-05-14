@@ -8,9 +8,9 @@ from credentials import api_user,api_secret
 api = eeDomusAPI(api_user,api_secret)
 
 if api.authTest()==1:
-	print "Authentification OK"
+        print("Authentification OK")
 else:
-	print "Authentification Error"
+        print("Authentification Error")
 
 # get the list of devices
 devs = api.getPeriphList()
@@ -19,16 +19,16 @@ devs = api.getPeriphList()
 dev = findDevice(devs,room_name="Salon")[4]
 
 # print infos on that device
-print dev
+print(dev)
 
 # get value and last change
-print "Value:", dev.lastValue(),
-print ", last changed on", dev.lastValueChange()
+print("Value:", dev.lastValue(), end=' ')
+print(", last changed on", dev.lastValueChange())
 
 # get the history and print some information
 history = dev.getHistory()
-print "History size: ", len(history)
-print "First entry: ",history[0]
-print "Last entry:", history[-1]
+print("History size: ", len(history))
+print("First entry: ",history[0])
+print("Last entry:", history[-1])
 
 

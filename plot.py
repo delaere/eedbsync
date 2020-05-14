@@ -18,7 +18,7 @@ def graphFromHistory(history):
 
 api = eeDbAPI()
 devs = api.getPeriphList()
-temps = findDevice(devs,usage_name=u"Température")
+temps = findDevice(devs,usage_name="Température")
 outside = temps[0].getHistory()
 inside = temps[3].getHistory()
 

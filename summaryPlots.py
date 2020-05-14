@@ -2,7 +2,7 @@
 # -*- coding: utf8 -*-
 
 from datetime import datetime, timedelta, date
-from itertools import tee, izip
+from itertools import tee
 from enum import Enum
 import ROOT
 import operator
@@ -26,7 +26,7 @@ class eeHistory:
         "s -> (s0,s1), (s1,s2), (s2, s3), ..."
         a, b = tee(iterable)
         next(b, None)
-        return izip(a, b)
+        return list(zip(a, b))
 
     def cleanData(self, minimum = -float('Inf'), maximum = float('Inf'), exclude=[]):
         """ Method to clean the data... quite trivial """
@@ -102,7 +102,7 @@ class eeHistory:
     				output[time] = min(float(entry),output[time])
     			elif mode == eeHistory.rebinMode.maximum:
     				output[time] = max(float(entry),output[time])
-	self.data_ = sorted([(value,time) for time, value in output.iteritems()],key=operator.itemgetter(1), reverse=True)
+	self.data_ = sorted([(value,time) for time, value in list(output.items())],key=operator.itemgetter(1), reverse=True)
 
     def histogram(self,name="histo",title="histo", binLabel="%B %Y"):
         """ make an histogram """
@@ -153,7 +153,7 @@ def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..."
     a, b = tee(iterable)
     next(b, None)
-    return izip(a, b)
+    return list(zip(a, b))
 
 def degreeJours(t_ext, t_ref = 15, t_max = 15):
   """compute the degree-jours per day"""
@@ -199,7 +199,7 @@ devs = api.getPeriphList()
 # temperatures
 c1 = ROOT.TCanvas()
 graphs = []
-temps = findDevice(devs,usage_name=u"Température")
+temps = findDevice(devs,usage_name="Température")
 for temp in temps:
     history = eeHistory(temp.getHistory())
     gr = history.graph()
@@ -216,7 +216,7 @@ c3 =  ROOT.TCanvas()
 c3.Divide(2,2)
 c3.cd(1)
 cgraphs = []
-consos = findDevice(devs,usage_name=u"Consomètre")
+consos = findDevice(devs,usage_name="Consomètre")
 for conso in consos:
     history = eeHistory(conso.getHistory())
     gr = history.graph()
@@ -243,7 +243,7 @@ gr0.Draw()
 
 # conso gaz
 # http://www.energieplus-lesite.be/index.php?id=10016
-gaz = eeHistory(findDevice(devs,usage_name=u"Compteur de gaz")[0].getHistory(), binned = True)
+gaz = eeHistory(findDevice(devs,usage_name="Compteur de gaz")[0].getHistory(), binned = True)
 gazcanvas =  ROOT.TCanvas()
 gazcanvas.Divide(2,2)
 gazcanvas.cd(2)
