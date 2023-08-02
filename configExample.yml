@@ -1,0 +1,13 @@
+# Influx server and credentials
+url: "http://localhost:8086"
+token: "thetokenreceivedbyinfluxdbtoconnecttotheinfluxdb2database"
+org: "myorg"
+bucket: "bucket"
+tags: { "source" : "eedomus"}
+
+# eedomus credentials
+api_user: 'APIU53R'
+api_secret: 'theapisecret'
+local_api: '192.168.1.X'
+use_cloud_api: true
+
