@@ -1,5 +1,5 @@
-# eeDomus credentials for this project
-credentials.py
+# private eeDomus and influxdb credentials
+config.yml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
