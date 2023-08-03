@@ -5,6 +5,7 @@ Created on Wed Jul 26 15:04:54 2023
 """
 
 import yaml
+import logger as log
 
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS, PointSettings
@@ -35,8 +36,9 @@ def are_float(points):
 class Influxdb:
     """ Simple interface to the influxdb API, for basic operations """
     
-    def __init__(self,configfile="config.yml"):
+    def __init__(self,configfile="config.yml", logger = None):
         self.client ,self.point_settings, self.bucket, self.org = self._getClient(configfile)
+        self.logger = log.logger if logger is None else logger
 
     def toInfluxData(self,device,points):
         """ converts a series of measurements to the format required to 
@@ -55,7 +57,7 @@ class Influxdb:
         
         are_f = are_float(points)
         
-        print(f"Saving {usage_name},name={name} as {'float' if are_f else 'string'}")
+        self.logger.log(log.LOG_DEBUG,f"Converting {usage_name},name={name} to {'float' if are_f else 'string'} series")
         for (value,timestamp) in points:
             if are_f:
                 if is_float(value):
@@ -77,11 +79,11 @@ class Influxdb:
         """ Returns the Influxdb client """
         with open(configfile, 'r') as ymlfile:
             cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
-        url = cfg["url"]
-        token = cfg["token"]
-        org = cfg["org"]
-        bucket = cfg["bucket"]
-        tags = cfg["tags"]
+        url = cfg.get("url",None)
+        token = cfg.get("token",None)
+        org = cfg.get("org",None)
+        bucket = cfg.get("bucket",None)
+        tags = cfg.get("tags",{})
         
         point_settings = PointSettings(**tags)
         
@@ -91,10 +93,11 @@ class Influxdb:
     def writeInflux(self,data):
         """ Uses the Influx write API to write data to the db """
         try:
+            self.logger.log(log.LOG_INFO,f"Saving {len(data)} points to the database")
             write_api = self.client.write_api(write_options=SYNCHRONOUS,point_settings=self.point_settings)
             write_api.write(self.bucket, self.org, data)
         except InfluxDBError as e:
-            print(e)
+            self.logger.log(log.LOG_ERR,e)
         
     def getLastEntry(self,device):
         """ Finds the last entry already in the database """

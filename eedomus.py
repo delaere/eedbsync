@@ -1,10 +1,10 @@
 import io
 import json
 import urllib.request, urllib.parse, urllib.error
-import warnings
 from datetime import datetime
 import time
 import pytz
+import logger as log
 
 # eeDomus Python API. From http://doc.eedomus.com/en/index.php/API_eedomus
 
@@ -93,7 +93,7 @@ class eeDevice:
                 del self.lastValue_
                 del self.lastValueChange_
                 
-def eeDevice_decoder(obj, tz='Europe/Brussels'): # TODO: define TZ from yaml (through lambda) lambda obj: eeDevice_decoder(obj,self.tz)
+def eeDevice_decoder(obj, tz='Europe/Brussels',logger=None):
         """Decoder to create a device from the json dict returned by the API"""
         # the time zone to be used for the creation of data points
         mytz = pytz.timezone(tz) if tz is not None else pytz.utc
@@ -110,7 +110,8 @@ def eeDevice_decoder(obj, tz='Europe/Brussels'): # TODO: define TZ from yaml (th
                         try:
                                 timestamp = mytz.localize(datetime.strptime(item[1],"%Y-%m-%d %H:%M:%S"))
                         except ValueError as e:
-                                warnings.warn("Warning: %s"%e,UserWarning)
+                                if logger is not None:
+                                    logger.log(log.LOG_WARNING,e)
                         else:
                                 result += [ (item[0], timestamp ) ]
                 return result
@@ -142,7 +143,7 @@ class eeDomusAPI:
         """Main interface to the eeDomus API.
            The API is created with the user and secret, and will use the local URL by default (except to get the history).
         """
-        def __init__(self, api_user, api_secret, localIP=None, tz=None):
+        def __init__(self, api_user, api_secret, localIP=None, tz=None, logger=None):
                 self.api_user = api_user
                 self.api_secret = api_secret
                 self.localURLget = None if localIP is None else  "http://%s/api/get?"%localIP
@@ -159,7 +160,8 @@ class eeDomusAPI:
 
                 self.values   = { "api_user":api_user, "api_secret":api_secret}
                 self.tz = tz
-                self.eeDevice_decoder = lambda obj : eeDevice_decoder(obj,self.tz)
+                self.logger = log.logger if logger is None else logger
+                self.eeDevice_decoder = lambda obj : eeDevice_decoder(obj,self.tz,self.logger)
 
         # Test authentification parameters:
         def authTest(self):
@@ -169,7 +171,6 @@ class eeDomusAPI:
                 u = urllib.request.urlopen(self.baseURLget+args)
                 f = io.TextIOWrapper(u, encoding = "latin-1")
                 data = json.load(f)
-                #data = json.load(urllib.request.urlopen(self.baseURLget+args), encoding = "latin-1")
                 return int(data['success'])
 
         # Get basic caracteristics from a user peripheral:
@@ -208,7 +209,8 @@ class eeDomusAPI:
                 vals["periph_id"]=periph_id
                 if not start_date is None: vals["start_date"]=start_date.strftime("%Y-%m-%d %H:%M:%S")
                 if not end_date is None: vals["end_date"]=end_date.strftime("%Y-%m-%d %H:%M:%S")
-                print(f'{"None" if start_date is None else start_date.strftime("%Y-%m-%d %H:%M:%S")} - {"None" if end_date is None else end_date.strftime("%Y-%m-%d %H:%M:%S")}')
+                self.logger.log(log.LOG_DEBUG,
+                                f'{"None" if start_date is None else start_date.strftime("%Y-%m-%d %H:%M:%S")} - {"None" if end_date is None else end_date.strftime("%Y-%m-%d %H:%M:%S")}')
                 args = urllib.parse.urlencode(vals)
                 u = urllib.request.urlopen(self.cloudURLget+args)
                 f = io.TextIOWrapper(u, encoding = "latin-1")
@@ -235,7 +237,6 @@ class eeDomusAPI:
                 u = urllib.request.urlopen(self.baseURLget+args)
                 f = io.TextIOWrapper(u, encoding = "latin-1")
                 data = json.load(f)
-                #data = json.load(urllib.request.urlopen(self.baseURLset+args), encoding = "latin-1")
                 if int(data['success']):
                         return data['body']['result']
                 else:
@@ -250,7 +251,6 @@ class eeDomusAPI:
                 u = urllib.request.urlopen(self.baseURLget+args)
                 f = io.TextIOWrapper(u, encoding = "latin-1")
                 data = json.load(f)
-                #data = json.load(urllib.request.urlopen(self.baseURLset+args), encoding = "latin-1")
                 if int(data['success']):
                         return data['body']['result']
                 else:
