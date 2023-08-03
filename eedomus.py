@@ -4,7 +4,7 @@ import urllib.request, urllib.parse, urllib.error
 import warnings
 from datetime import datetime
 import time
-
+import pytz
 
 # eeDomus Python API. From http://doc.eedomus.com/en/index.php/API_eedomus
 
@@ -93,20 +93,22 @@ class eeDevice:
                 del self.lastValue_
                 del self.lastValueChange_
                 
-def eeDevice_decoder(obj):
+def eeDevice_decoder(obj, tz='Europe/Brussels'): # TODO: define TZ from yaml (through lambda) lambda obj: eeDevice_decoder(obj,self.tz)
         """Decoder to create a device from the json dict returned by the API"""
+        # the time zone to be used for the creation of data points
+        mytz = pytz.timezone(tz) if tz is not None else pytz.utc
         if 'last_value_change' in obj:
                 return { 'name':obj['name'],
                          'last_value':obj['last_value'],
-                         'last_value_change': datetime.strptime(obj['last_value_change'],"%Y-%m-%d %H:%M:%S") }
+                         'last_value_change': mytz.localize(datetime.strptime(obj['last_value_change'],"%Y-%m-%d %H:%M:%S")) }
         elif "periph_id" in obj:
                 return eeDevice(obj["periph_id"], obj["parent_periph_id"], obj["name"], obj["room_id"], 
-                                obj["room_name"], obj["usage_id"], obj["usage_name"], datetime.strptime(obj["creation_date"],"%Y-%m-%d %H:%M:%S"))
+                                obj["room_name"], obj["usage_id"], obj["usage_name"], mytz.localize(datetime.strptime(obj["creation_date"],"%Y-%m-%d %H:%M:%S")))
         elif 'history' in obj:
                 result = []
                 for item in obj['history']:
                         try:
-                                timestamp = datetime.strptime(item[1],"%Y-%m-%d %H:%M:%S")
+                                timestamp = mytz.localize(datetime.strptime(item[1],"%Y-%m-%d %H:%M:%S"))
                         except ValueError as e:
                                 warnings.warn("Warning: %s"%e,UserWarning)
                         else:
@@ -140,7 +142,7 @@ class eeDomusAPI:
         """Main interface to the eeDomus API.
            The API is created with the user and secret, and will use the local URL by default (except to get the history).
         """
-        def __init__(self, api_user, api_secret, localIP=None):
+        def __init__(self, api_user, api_secret, localIP=None, tz=None):
                 self.api_user = api_user
                 self.api_secret = api_secret
                 self.localURLget = None if localIP is None else  "http://%s/api/get?"%localIP
@@ -156,6 +158,8 @@ class eeDomusAPI:
                         self.baseURLset = self.cloudURLset 
 
                 self.values   = { "api_user":api_user, "api_secret":api_secret}
+                self.tz = tz
+                self.eeDevice_decoder = lambda obj : eeDevice_decoder(obj,self.tz)
 
         # Test authentification parameters:
         def authTest(self):
@@ -176,8 +180,7 @@ class eeDomusAPI:
                 args = urllib.parse.urlencode(vals)
                 u = urllib.request.urlopen(self.baseURLget+args)
                 f = io.TextIOWrapper(u, encoding = "latin-1")
-                data = json.load(f,object_hook=eeDevice_decoder)
-                #data = json.load(urllib.request.urlopen(self.baseURLget+args), encoding = "latin-1", object_hook=eeDevice_decoder)
+                data = json.load(f,object_hook=self.eeDevice_decoder)
                 if int(data['success']):
                         return data['body']
                 else:
@@ -190,8 +193,7 @@ class eeDomusAPI:
                 args = urllib.parse.urlencode(vals)
                 u = urllib.request.urlopen(self.baseURLget+args)
                 f = io.TextIOWrapper(u, encoding = "latin-1")
-                data = json.load(f,object_hook=eeDevice_decoder)
-                #data = json.load(urllib.request.urlopen(self.baseURLget+args), encoding = "latin-1", object_hook=eeDevice_decoder)
+                data = json.load(f,object_hook=self.eeDevice_decoder)
                 if int(data['success']):
                         for device in data['body']:
                                 device.setAPI(self)
@@ -210,7 +212,7 @@ class eeDomusAPI:
                 args = urllib.parse.urlencode(vals)
                 u = urllib.request.urlopen(self.cloudURLget+args)
                 f = io.TextIOWrapper(u, encoding = "latin-1")
-                data = json.load(f,object_hook=eeDevice_decoder)
+                data = json.load(f,object_hook=self.eeDevice_decoder)
                 if not int(data['success']):
                     raise eeError(data["body"])
                 if 'history_overflow' in data:

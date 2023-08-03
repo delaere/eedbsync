@@ -20,11 +20,12 @@ def getAPI(configfile="config.yml"):
     api_secret = cfg["api_secret"]
     local_api = cfg["local_api"]
     use_cloud = cfg["use_cloud_api"]
+    timezone = cfg["timezone"]
     if use_cloud : 
         local_api = None
     
     # the API entry point
-    api = eedomus.eeDomusAPI(api_user,api_secret,local_api)
+    api = eedomus.eeDomusAPI(api_user,api_secret,local_api,tz=timezone)
 
     #check connection
     if api.authTest()==1:

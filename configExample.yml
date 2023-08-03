@@ -10,4 +10,5 @@ api_user: 'APIU53R'
 api_secret: 'theapisecret'
 local_api: '192.168.1.X'
 use_cloud_api: true
+timezone: 'Europe/Brussels'
 
