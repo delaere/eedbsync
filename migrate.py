@@ -43,9 +43,11 @@ def main():
             epilog="use at your own risk")
     argParser.add_argument("-c", "--config", help="config file", default="config.yml")
     argParser.add_argument("-d", "--dry", help="don't write to influxdb",action='store_true')
+    argParser.add_argument("-a", "--all", help="Force migration of all data",action='store_true')
     args = argParser.parse_args()
     configfile = args.config
     dryrun = args.dry
+    forceall = args.all
 
     # the eedomus API
     api = getAPI(configfile)
@@ -58,7 +60,7 @@ def main():
     
     # loop on devices and migrate data to influxdb
     for device in devices:
-        start_date = influxdb.getLastEntry(device)
+        start_date = influxdb.getLastEntry(device) if not forceall else None
         if start_date is None: 
             print(f"Migrating {device.name}")
         else:
