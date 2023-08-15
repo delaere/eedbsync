@@ -12,6 +12,10 @@ import yaml
 import time
 import argparse
 import logger as log
+import urllib3
+from datetime import timedelta
+
+onesec = timedelta(seconds=1)
 
 def getAPI(configfile="config.yml"):
     # load config
@@ -77,17 +81,29 @@ def main():
     logger = getLogger(configfile)
 
     # the eedomus API
-    api = getAPI(configfile)
+    try:
+        api = getAPI(configfile)
+    except:
+        logger.log(log.LOG_ERR,"Unable to connect to the eedomus API")
+        return
     
     # get the list of devices
     devices = api.getPeriphList()
     
     # the Influxdb API
-    influxdb = Influxdb(configfile,logger)
-    
+    try:
+        influxdb = Influxdb(configfile,logger)
+    except:
+        logger.log(log.LOG_ERR,"Unable to connect to the influxdb API")
+        return
+
     # loop on devices and migrate data to influxdb
     for device in devices:
-        start_date = influxdb.getLastEntry(device) if not forceall else None
+        try: 
+            start_date = influxdb.getLastEntry(device)+onesec if not forceall else None
+        except urllib3.exceptions.NewConnectionError as e:
+            logger.log(log.LOG_ERR,f"Unable to connect to the influxdb API: {e}")
+            return
         if start_date is None:
             logger.log(log.LOG_INFO,f"Migrating {device.name}")
         else:
