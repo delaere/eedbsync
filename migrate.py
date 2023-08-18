@@ -100,10 +100,12 @@ def main():
     # loop on devices and migrate data to influxdb
     for device in devices:
         try: 
-            start_date = influxdb.getLastEntry(device)+onesec if not forceall else None
+            start_date = influxdb.getLastEntry(device) if not forceall else None
         except urllib3.exceptions.NewConnectionError as e:
             logger.log(log.LOG_ERR,f"Unable to connect to the influxdb API: {e}")
             return
+        if start_date is not None:
+            start_date += onesec
         if start_date is None:
             logger.log(log.LOG_INFO,f"Migrating {device.name}")
         else:
