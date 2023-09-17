@@ -33,5 +33,5 @@ class logger:
             else:
                 print(f"{self.names[priority]}: {message}")
         if self.syslog:
-            syslog(priority,message)
+            syslog(priority,str(message))
 
