@@ -104,7 +104,10 @@ class Influxdb:
         """ Finds the last entry already in the database """
         usage_name = device.usage_name
         periph_id = device.periph_id
-        query=f'from(bucket: "{self.bucket}") |> range(start: 1970-01-01T00:00:00Z) |> filter(fn: (r) => r["_measurement"] == "{usage_name}")  |> filter(fn: (r) => r["periph_id"] == "{periph_id}") |> filter(fn: (r) => r["source"] == "eedomus") |> last()'
+        query=f'from(bucket: "{self.bucket}") |> range(start: 1970-01-01T00:00:00Z) |> filter(fn: (r) => r["_measurement"] == "{usage_name}")  |> filter(fn: (r) => r["periph_id"] == "{periph_id}")'
+        for t,v in self.point_settings.defaultTags.items():
+            query += f'|> filter(fn: (r) => r["{t}"] == "{v}")'
+        query += ' |> last()'
         result = self.client.query_api().query(org=self.org, query=query)
         for table in result:
             for record in table.records:
